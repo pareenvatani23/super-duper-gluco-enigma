@@ -55,5 +55,10 @@ JSON summary to `--results`.
 
 ## Results (this repo's runs)
 
-See `results/` for machine-written summaries of the runs performed while
-building this repo, and `docs/RESULTS.md` for discussion.
+Pretrained on the real Shanghai cohort (1,315 days / 112 subjects /
+~10,240 CGM hours, CPU): JEPA loss 2.23 → 0.75, learned σ ≈ 6.3 steps,
+embedding effective rank 60.6/128; frozen-probe AUCs: same-day
+hypoglycemia 0.79, next-day hypoglycemia 0.67 (persistence baseline
+0.72), T1DM-vs-T2DM 0.56 ± 0.13. See `docs/RESULTS.md` for the full
+verification table, the latent-collapse fix, and limitations; `results/`
+holds machine-written run summaries.
