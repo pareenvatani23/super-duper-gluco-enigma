@@ -1,10 +1,29 @@
 # Results and verification log
 
-All runs were performed on CPU (4 cores) on the real **ShanghaiT1DM/T2DM**
-cohort (Zhao et al. 2023, CC BY 4.0): after grid alignment and quality
-filtering, **1,315 patient-days from 112 subjects (~10,240 observed CGM
-hours)**. For scale, the paper pretrains on 109,066 hours from 477 subjects
-— roughly ten times more data than used here.
+Two pretraining runs were performed, both CPU-only:
+
+1. **ShanghaiT1DM/T2DM** (local, Zhao et al. 2023, CC BY 4.0): 1,315
+   patient-days from 112 subjects (~10,240 observed CGM hours).
+2. **GlucoFM-Bench** (on a GitHub Actions runner, since Hugging Face is
+   unreachable from the dev sandbox): the aggregated 12-cohort benchmark —
+   **8,370 patient-days from 529 subjects (~191,450 observed CGM hours)**,
+   which actually exceeds the paper's 109,066-hour pretraining corpus
+   (the bench data is interpolation-densified to 5-minute cadence, so its
+   observed-hour count runs high).
+
+## Headline: scaling the data works
+
+| Probe (subject-disjoint, frozen encoder) | Shanghai (10k h) | GlucoFM-Bench (191k h) |
+| --- | --- | --- |
+| T1DM vs T2DM cohort | 0.56 ± 0.13 | **0.90 ± 0.01** |
+| Next-day hypoglycemia | 0.67 ± 0.04 | **0.71 ± 0.03** |
+| Next-day persistence baseline | 0.72 (not beaten) | 0.68 (**beaten**) |
+
+On the larger corpus the learned bandwidth settled at σ ≈ 9.6 grid steps
+(~48 min) versus 6.3 on Shanghai — with more heterogeneous cohorts the
+model prefers a wider state/event split. Final JEPA loss: 2.37 → 0.58.
+The bench checkpoint is committed at `checkpoints/glucofm_bench.pt`
+(also archived as a run artifact on the training workflow run).
 
 ## Does the implementation match the paper?
 

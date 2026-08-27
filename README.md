@@ -55,10 +55,12 @@ JSON summary to `--results`.
 
 ## Results (this repo's runs)
 
-Pretrained on the real Shanghai cohort (1,315 days / 112 subjects /
-~10,240 CGM hours, CPU): JEPA loss 2.23 → 0.75, learned σ ≈ 6.3 steps,
-embedding effective rank 60.6/128; frozen-probe AUCs: same-day
-hypoglycemia 0.79, next-day hypoglycemia 0.67 (persistence baseline
-0.72), T1DM-vs-T2DM 0.56 ± 0.13. See `docs/RESULTS.md` for the full
-verification table, the latent-collapse fix, and limitations; `results/`
-holds machine-written run summaries.
+Two CPU pretraining runs: the real Shanghai cohort (~10,240 CGM hours)
+locally, and the full GlucoFM-Bench aggregation (**529 subjects,
+~191,450 observed CGM hours**) on a GitHub Actions runner. Scaling the
+data worked: frozen subject-disjoint probes improved from 0.56 to
+**0.90 ± 0.01** AUC on T1DM-vs-T2DM and from 0.67 to **0.71 ± 0.03** on
+next-day hypoglycemia — now beating the persistence baseline (0.68).
+The bench checkpoint is committed at `checkpoints/glucofm_bench.pt`.
+See `docs/RESULTS.md` for the verification table, the latent-collapse
+diagnosis/fix, and limitations; `results/` holds run summaries.
