@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pytest
+      - name: Run test suite
+        run: pytest tests/ -v
+      - name: Smoke pretraining run (synthetic data)
+        run: python scripts/pretrain.py --data synthetic --epochs 3 --out /tmp/ck.pt --results /tmp/results.json
+      - name: Show smoke results
+        run: cat /tmp/results.json
