@@ -82,6 +82,30 @@ mask token). The temporal-dynamics objective also moved to the clean
 forward. Effect: effective rank 1.8 → 60.6, same-day hypo decodability
 0.65 → 0.79, next-day hypo 0.56 → 0.67.
 
+## Comparison against a clinical feature baseline
+
+16 standard day-level glycemia features (mean/CV, time-in-range bands,
+extremes, rate-of-change, time-of-day means) probed under the *identical*
+subject-disjoint protocol:
+
+| Task / dataset | GlucoFM embeddings | Clinical features |
+| --- | --- | --- |
+| T1DM vs T2DM, Shanghai | 0.56 ± 0.13 | **0.78 ± 0.06** |
+| T1DM vs T2DM, GlucoFM-Bench | 0.85–0.90 (two runs) | **0.95 ± 0.02** |
+| Next-day hypo, Shanghai | 0.65–0.67 | **0.84 ± 0.02** |
+| Next-day hypo, GlucoFM-Bench | 0.62–0.71 (two runs) | **0.76 ± 0.02** |
+
+**The feature baseline wins across the board.** At this scale and with this
+training recipe, the self-supervised representations do not yet beat what a
+feature engineer gets for free — the paper's reported advantage over
+feature baselines is not reproduced here. Two observations worth carrying
+forward: (a) two identical-config bench pretraining runs differ by up to
+0.09 AUC on downstream probes, so single-run comparisons are noisy; (b)
+the gap is smallest on the biggest data, consistent with representation
+quality still being data-bound. Fine-tuning (rather than frozen linear
+probing), longer training, and hyperparameter search are the untried
+levers.
+
 ## Honest limitations
 
 - With ~1/10 of the paper's pretraining data and CPU-scale training, the
