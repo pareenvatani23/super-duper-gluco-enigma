@@ -26,7 +26,7 @@ from glucofm.model.glucofm import GlucoFM, GlucoFMConfig
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True)
-    ap.add_argument("--data", choices=["shanghai", "synthetic"], default="shanghai")
+    ap.add_argument("--data", choices=["shanghai", "bench", "synthetic"], default="shanghai")
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--results", default="results/eval.json")
     args = ap.parse_args()
@@ -40,6 +40,14 @@ def main() -> None:
         from glucofm.data.shanghai import load_shanghai_cohort
 
         cohort = load_shanghai_cohort(args.data_root)
+    elif args.data == "bench":
+        from glucofm.data.glucofm_bench import load_glucofm_bench
+
+        cohort = load_glucofm_bench("train")
+        names = np.char.lower(cohort["dataset_name"].astype(str))
+        is_t1 = np.char.find(names, "t1") >= 0
+        is_t2 = np.char.find(names, "t2") >= 0
+        cohort["label"] = np.where(is_t1, 1, np.where(is_t2, 0, -1))
     else:
         from glucofm.data.synthetic import SyntheticCGMConfig, generate_cohort
 
@@ -47,9 +55,18 @@ def main() -> None:
 
     results: dict = {}
 
+    # Restrict the subject-label probe to subjects with a definite 0/1 label
+    # (GlucoFM-Bench cohorts that are neither clearly T1DM nor T2DM get -1).
+    labeled = np.nonzero(cohort["label"] != -1)[0]
+    sel = np.isin(cohort["subject"], labeled)
     aucs = [
         linear_probe_auc(
-            model, cohort["values"], cohort["mask"], cohort["subject"], cohort["label"], seed=s
+            model,
+            cohort["values"][sel],
+            cohort["mask"][sel],
+            cohort["subject"][sel],
+            cohort["label"],
+            seed=s,
         )
         for s in range(5)
     ]

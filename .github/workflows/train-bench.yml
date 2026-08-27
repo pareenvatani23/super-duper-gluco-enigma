@@ -1,0 +1,58 @@
+name: Train on GlucoFM-Bench
+
+# Pretrains GlucoFM on the aggregated GlucoFM-Bench dataset (downloaded from
+# Hugging Face, which is reachable from Actions runners), evaluates, and
+# commits the checkpoint + result summaries back to the branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: "Pretraining epochs"
+        required: false
+        default: "60"
+
+permissions:
+  contents: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pandas pyarrow huggingface_hub
+          pip install -e . --no-deps
+      - name: Pretrain on GlucoFM-Bench
+        run: |
+          python scripts/pretrain.py --data bench \
+            --epochs "${{ inputs.epochs || '60' }}" \
+            --out checkpoints/glucofm_bench.pt \
+            --results results/bench.json
+      - name: Evaluate checkpoint
+        run: |
+          python scripts/evaluate.py --checkpoint checkpoints/glucofm_bench.pt \
+            --data bench --results results/bench_eval.json
+      - name: Upload checkpoint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glucofm-bench-checkpoint
+          path: |
+            checkpoints/glucofm_bench.pt
+            results/*.json
+      - name: Commit results and checkpoint to branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/bench.json results/bench_eval.json
+          git add -f checkpoints/glucofm_bench.pt
+          git commit -m "Add GlucoFM-Bench pretraining results and checkpoint (CI run ${{ github.run_id }})"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"

@@ -43,8 +43,12 @@ def load_glucofm_bench(
         repo_type="dataset",
         cache_dir=str(cache_dir) if cache_dir else None,
     )
-    df = pd.read_parquet(parquet)
+    return grid_align_frame(pd.read_parquet(parquet))
 
+
+def grid_align_frame(df) -> dict[str, np.ndarray]:
+    """Grid-align a GlucoFM-Bench-schema dataframe (one row per participant
+    with ``dataset``/``subject_id``/``timestamp``/``BGvalue`` columns)."""
     all_values, all_masks, all_subject_idx, ds_names = [], [], [], []
     subject_counter = 0
     for row in df.itertuples(index=False):
