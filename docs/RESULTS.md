@@ -106,6 +106,28 @@ quality still being data-bound. Fine-tuning (rather than frozen linear
 probing), longer training, and hyperparameter search are the untried
 levers.
 
+## 30-minute forecasting head
+
+A small MLP head on the frozen encoder (plus last-hour trace, slope, and
+time-of-day) predicts the next 6 x 5-minute deltas. Trained on the
+GlucoFM-Bench train split, evaluated on its participant-disjoint test
+split (14,664 prediction points):
+
+| Predictor | RMSE at 30 min (mg/dL) |
+| --- | --- |
+| Forecasting head | 21.7 |
+| Last-value persistence | 21.4 |
+| Linear-trend extrapolation | 26.8 |
+
+The head lands within the range published CGM-forecasting models report,
+and clearly beats trend extrapolation, but does **not** beat persistence —
+consistent with the literature: at 30-minute horizons, CGM-only input is
+dominated by momentum, and beating persistence generally requires meal,
+insulin, and activity context. (A tuning attempt with a deeper head and a
+2-hour trace overfit and was reverted — see git history.)
+`scripts/predict_next30.py` runs the trained head against a personal
+Glooko/CGM CSV export. Research use only; never for treatment decisions.
+
 ## Honest limitations
 
 - With ~1/10 of the paper's pretraining data and CPU-scale training, the
