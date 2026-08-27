@@ -27,7 +27,7 @@ HORIZON = 6  # 6 x 5 min = 30 minutes
 HISTORY_STEPS = 36  # require 3 hours of context
 _HALF_RANGE = (GLUCOSE_MAX - GLUCOSE_MIN) / 2.0  # normalized units -> mg/dL
 _SLOPE_STEPS = 3  # slope over the last 15 minutes
-_RECENT_STEPS = 24  # raw last-two-hours trace fed directly to the head
+_RECENT_STEPS = 12  # raw last-hour trace fed directly to the head
 AUX_DIM = 4 + _RECENT_STEPS
 
 
@@ -127,14 +127,10 @@ def forecast_features(
 
 
 class ForecastHead(nn.Module):
-    def __init__(self, in_dim: int, hidden: int = 256):
+    def __init__(self, in_dim: int, hidden: int = 128):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_dim, hidden),
-            nn.GELU(),
-            nn.Linear(hidden, hidden),
-            nn.GELU(),
-            nn.Linear(hidden, HORIZON),
+            nn.Linear(in_dim, hidden), nn.GELU(), nn.Linear(hidden, HORIZON)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -144,7 +140,7 @@ class ForecastHead(nn.Module):
 def train_head(
     x: np.ndarray,
     y: np.ndarray,
-    epochs: int = 60,
+    epochs: int = 40,
     batch_size: int = 512,
     lr: float = 1e-3,
     seed: int = 0,
@@ -152,23 +148,18 @@ def train_head(
     torch.manual_seed(seed)
     head = ForecastHead(x.shape[1])
     opt = torch.optim.AdamW(head.parameters(), lr=lr, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     xt = torch.from_numpy(x)
     yt = torch.from_numpy(y)
-    # Weight later steps more: the 30-minute point is the one that matters.
-    step_w = torch.linspace(0.5, 1.5, HORIZON)
     n = len(xt)
     rng = np.random.default_rng(seed)
     for _ in range(epochs):
         order = rng.permutation(n)
         for i in range(0, n, batch_size):
             idx = order[i : i + batch_size]
-            err = F.smooth_l1_loss(head(xt[idx]), yt[idx], reduction="none")
-            loss = (err * step_w).mean()
+            loss = F.smooth_l1_loss(head(xt[idx]), yt[idx])
             opt.zero_grad()
             loss.backward()
             opt.step()
-        sched.step()
     return head
 
 
