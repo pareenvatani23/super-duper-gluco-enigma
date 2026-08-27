@@ -54,10 +54,8 @@ def subject_embeddings(
     return subject_ids, per_subject
 
 
-def linear_probe_auc(
-    model: GlucoFM,
-    values: np.ndarray,
-    mask: np.ndarray,
+def matrix_probe_auc(
+    day_matrix: np.ndarray,
     subject: np.ndarray,
     label: np.ndarray,
     train_frac: float = 0.6,
@@ -65,8 +63,13 @@ def linear_probe_auc(
     epochs: int = 300,
     lr: float = 0.05,
 ) -> float:
-    """Train a logistic probe on frozen embeddings; subject-disjoint ROC-AUC."""
-    subject_ids, embs = subject_embeddings(model, values, mask, subject)
+    """Subject-disjoint logistic probe over any (N_days, F) feature matrix.
+
+    Day features are averaged per subject; used both for encoder embeddings
+    (via ``linear_probe_auc``) and for hand-crafted feature baselines.
+    """
+    subject_ids = np.unique(subject)
+    embs = np.stack([day_matrix[subject == s].mean(axis=0) for s in subject_ids])
     y = label[subject_ids]
 
     # Stratified subject-disjoint split so both classes appear on each side
@@ -101,3 +104,25 @@ def linear_probe_auc(
     with torch.no_grad():
         scores = (x[test_idx] @ w + b).numpy()
     return roc_auc(y[test_idx], scores)
+
+
+def linear_probe_auc(
+    model: GlucoFM,
+    values: np.ndarray,
+    mask: np.ndarray,
+    subject: np.ndarray,
+    label: np.ndarray,
+    train_frac: float = 0.6,
+    seed: int = 0,
+    epochs: int = 300,
+    lr: float = 0.05,
+) -> float:
+    """Train a logistic probe on frozen embeddings; subject-disjoint ROC-AUC."""
+    model.eval()
+    v = torch.from_numpy(values).float()
+    m = torch.from_numpy(mask).float()
+    with torch.no_grad():
+        day_emb = torch.cat(
+            [model(v[i : i + 256], m[i : i + 256]) for i in range(0, v.shape[0], 256)]
+        ).numpy()
+    return matrix_probe_auc(day_emb, subject, label, train_frac, seed, epochs, lr)

@@ -18,8 +18,9 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from glucofm.eval.hypo import next_day_hypo_auc
-from glucofm.eval.probe import linear_probe_auc
+from glucofm.eval.features import day_features
+from glucofm.eval.hypo import next_day_hypo_auc, next_day_hypo_auc_from_matrix
+from glucofm.eval.probe import linear_probe_auc, matrix_probe_auc
 from glucofm.model.glucofm import GlucoFM, GlucoFMConfig
 
 
@@ -91,6 +92,33 @@ def main() -> None:
         f"+/- {results['next_day_hypo']['auc_std']:.3f} "
         f"(persistence baseline {results['next_day_hypo']['persistence_auc_mean']:.3f}, "
         f"positive rate {results['next_day_hypo']['positive_rate']:.2f})"
+    )
+
+    # Hand-crafted clinical-feature baseline under the identical protocol.
+    feats = day_features(cohort["values"], cohort["mask"])
+    base_aucs = [
+        matrix_probe_auc(feats[sel], cohort["subject"][sel], cohort["label"], seed=s)
+        for s in range(5)
+    ]
+    base_hypo = [
+        next_day_hypo_auc_from_matrix(
+            feats, cohort["values"], cohort["mask"], cohort["subject"], seed=s
+        )
+        for s in range(5)
+    ]
+    results["feature_baseline"] = {
+        "subject_label_auc_mean": float(np.mean(base_aucs)),
+        "subject_label_auc_std": float(np.std(base_aucs)),
+        "next_day_hypo_auc_mean": float(np.mean([h["auc"] for h in base_hypo])),
+        "next_day_hypo_auc_std": float(np.std([h["auc"] for h in base_hypo])),
+    }
+    print(
+        f"feature baseline: subject-label AUC "
+        f"{results['feature_baseline']['subject_label_auc_mean']:.3f} "
+        f"+/- {results['feature_baseline']['subject_label_auc_std']:.3f}, "
+        f"next-day hypo AUC "
+        f"{results['feature_baseline']['next_day_hypo_auc_mean']:.3f} "
+        f"+/- {results['feature_baseline']['next_day_hypo_auc_std']:.3f}"
     )
 
     out = Path(args.results)

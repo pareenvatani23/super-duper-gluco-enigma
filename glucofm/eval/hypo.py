@@ -50,7 +50,22 @@ def next_day_hypo_auc(
         for i in range(0, v.shape[0], 256):
             embs.append(model(v[i : i + 256], m[i : i + 256]))
         day_emb = torch.cat(embs).numpy()
+    return next_day_hypo_auc_from_matrix(
+        day_emb, values, mask, subject, train_frac, seed, epochs, lr
+    )
 
+
+def next_day_hypo_auc_from_matrix(
+    day_emb: np.ndarray,
+    values: np.ndarray,
+    mask: np.ndarray,
+    subject: np.ndarray,
+    train_frac: float = 0.6,
+    seed: int = 0,
+    epochs: int = 300,
+    lr: float = 0.05,
+) -> dict[str, float]:
+    """Same protocol over any precomputed (N_days, F) day-feature matrix."""
     hypo = day_hypo_labels(values, mask)
 
     # Build (day t -> label of day t+1) pairs within each subject.
@@ -79,7 +94,9 @@ def next_day_hypo_auc(
     train_sel = np.isin(subj, train_subj)
     test_sel = ~train_sel
     if y[test_sel].min() == y[test_sel].max():  # degenerate split: reshuffle
-        return next_day_hypo_auc(model, values, mask, subject, train_frac, seed + 100, epochs, lr)
+        return next_day_hypo_auc_from_matrix(
+            day_emb, values, mask, subject, train_frac, seed + 100, epochs, lr
+        )
 
     mean = x[train_sel].mean(axis=0)
     std = x[train_sel].std(axis=0) + 1e-6
