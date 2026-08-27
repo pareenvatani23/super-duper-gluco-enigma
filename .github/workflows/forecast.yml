@@ -1,0 +1,46 @@
+name: Train forecasting head
+
+# Trains the 30-minute forecasting head on GlucoFM-Bench (downloaded from
+# Hugging Face on the runner) using the committed pretrained encoder, then
+# evaluates on the participant-disjoint test split and commits the head +
+# results back to the branch.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["claude/google-glucofm-research-thcq8e"]
+    paths:
+      - ".github/workflows/forecast.yml"
+      - ".forecast-trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy pandas pyarrow huggingface_hub
+          pip install -e . --no-deps
+      - name: Train and evaluate forecasting head
+        run: |
+          python scripts/forecast_train.py --encoder checkpoints/glucofm_bench.pt \
+            --data bench --out checkpoints/forecast_head.pt --results results/forecast.json
+      - name: Commit head and results to branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/forecast.json
+          git add -f checkpoints/forecast_head.pt
+          git commit -m "Add 30-min forecasting head and bench-test results (CI run ${{ github.run_id }})"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"
