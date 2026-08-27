@@ -19,8 +19,9 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install numpy pytest
+          pip install -e . --no-deps
       - name: Run test suite
-        run: pytest tests/ -v
+        run: python -m pytest tests/ -v
       - name: Smoke pretraining run (synthetic data)
         run: python scripts/pretrain.py --data synthetic --epochs 3 --out /tmp/ck.pt --results /tmp/results.json
       - name: Show smoke results
