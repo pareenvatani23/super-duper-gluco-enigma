@@ -11,6 +11,13 @@ on:
         description: "Pretraining epochs"
         required: false
         default: "60"
+  # workflow_dispatch is only registered once the file reaches the default
+  # branch, so also fire on pushes that touch this file or the trigger marker.
+  push:
+    branches: ["claude/google-glucofm-research-thcq8e"]
+    paths:
+      - ".github/workflows/train-bench.yml"
+      - ".train-bench-trigger"
 
 permissions:
   contents: write
