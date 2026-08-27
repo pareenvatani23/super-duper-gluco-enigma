@@ -38,8 +38,15 @@ def day_features(values: np.ndarray, mask: np.ndarray) -> np.ndarray:
         tbr54 = np.nanmean(g < 54, axis=1)
         tar180 = np.nanmean(g > 180, axis=1)
         tar250 = np.nanmean(g > 250, axis=1)
-        delta = np.abs(np.diff(g, axis=1))
-        mean_abs_delta = np.nanmean(delta, axis=1)
+        # Rate of change between consecutive *observed* readings (per grid
+        # step): adjacent-cell diffs are all-NaN for 15-minute sensors.
+        mean_abs_delta = np.full(g.shape[0], np.nan)
+        for i in range(g.shape[0]):
+            obs = np.nonzero(mask[i] > 0)[0]
+            if obs.size >= 2:
+                dv = np.abs(np.diff(g[i, obs]))
+                dt = np.diff(obs).astype(np.float64)
+                mean_abs_delta[i] = float(np.mean(dv / dt))
         obs_frac = mask.mean(axis=1)
         q = GRID_LEN // 4
         night = np.nanmean(g[:, :q], axis=1)
@@ -53,8 +60,9 @@ def day_features(values: np.ndarray, mask: np.ndarray) -> np.ndarray:
         axis=1,
     )
     # A day with an empty time-of-day quarter yields NaNs: fill with the
-    # column mean so the probe stays defined.
-    col_mean = np.nanmean(feats, axis=0)
+    # column mean so the probe stays defined (0 if a column is all-NaN).
+    col_mean = np.nan_to_num(np.nanmean(feats, axis=0), nan=0.0)
     nan_pos = np.isnan(feats)
     feats[nan_pos] = np.take(col_mean, np.nonzero(nan_pos)[1])
+    assert np.isfinite(feats).all(), "day_features produced non-finite values"
     return feats.astype(np.float32)
