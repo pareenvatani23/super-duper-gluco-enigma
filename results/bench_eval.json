@@ -1,12 +1,18 @@
 {
   "subject_label_probe": {
-    "auc_mean": 0.9016666666666666,
-    "auc_std": 0.009472181492255228
+    "auc_mean": 0.8461666666666667,
+    "auc_std": 0.029854275703452893
   },
   "next_day_hypo": {
-    "auc_mean": 0.7141045018915912,
-    "auc_std": 0.025105026980016376,
+    "auc_mean": 0.6245830229275275,
+    "auc_std": 0.02155341639216933,
     "persistence_auc_mean": 0.6781244777869602,
     "positive_rate": 0.3885983930621094
+  },
+  "feature_baseline": {
+    "subject_label_auc_mean": 0.945,
+    "subject_label_auc_std": 0.020255314803225778,
+    "next_day_hypo_auc_mean": 0.7608533232218926,
+    "next_day_hypo_auc_std": 0.019538974584845666
   }
 }

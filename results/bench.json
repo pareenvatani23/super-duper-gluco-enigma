@@ -3,9 +3,9 @@
   "subjects": 529,
   "observed_hours": 191450.5,
   "encoder_parameters": 716545,
-  "final_loss": 0.5821323752403259,
-  "initial_loss": 2.366104817390442,
-  "learned_sigma": 9.634536743164062,
-  "probe_auc_mean": 0.9016666666666666,
-  "probe_auc_std": 0.009472181492255228
+  "final_loss": 0.6977176189422607,
+  "initial_loss": 2.479179048538208,
+  "learned_sigma": 6.6135172843933105,
+  "probe_auc_mean": 0.8461666666666667,
+  "probe_auc_std": 0.029854275703452893
 }
