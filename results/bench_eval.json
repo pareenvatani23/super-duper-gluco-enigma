@@ -1,0 +1,12 @@
+{
+  "subject_label_probe": {
+    "auc_mean": 0.9016666666666666,
+    "auc_std": 0.009472181492255228
+  },
+  "next_day_hypo": {
+    "auc_mean": 0.7141045018915912,
+    "auc_std": 0.025105026980016376,
+    "persistence_auc_mean": 0.6781244777869602,
+    "positive_rate": 0.3885983930621094
+  }
+}
