@@ -1,0 +1,12 @@
+{
+  "n_samples": 14664.0,
+  "model_rmse_30min": 21.744976043701172,
+  "model_mae_30min": 15.132574081420898,
+  "model_rmse_all": 14.987425804138184,
+  "persistence_rmse_30min": 21.39988136291504,
+  "persistence_mae_30min": 13.900468826293945,
+  "persistence_rmse_all": 14.938992500305176,
+  "linear_trend_rmse_30min": 26.771238686022176,
+  "linear_trend_mae_30min": 16.50997721559658,
+  "linear_trend_rmse_all": 17.577698169771317
+}
