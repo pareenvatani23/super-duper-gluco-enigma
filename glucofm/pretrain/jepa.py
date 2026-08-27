@@ -37,6 +37,12 @@ class JEPAConfig:
     dynamics_weight: float = 0.5
     predictor_hidden: int = 128
     transition_hidden: int = 64
+    # Anti-collapse (VICReg-style) regularization on the online fused tokens.
+    # The paper does not spell out its anti-collapse mechanism beyond the EMA
+    # target encoder; at small data scale we observed severe dimensional
+    # collapse (effective rank ~2/128) without an explicit variance term.
+    variance_weight: float = 1.0
+    covariance_weight: float = 0.1
 
 
 def _mlp(d_in: int, d_hidden: int, d_out: int) -> nn.Sequential:
@@ -105,6 +111,11 @@ class JEPAPretrainer(nn.Module):
             patch_mask=patch_mask,
             mask_tokens=(self.mask_token_state, self.mask_token_event),
         )
+        # Clean (un-masked) online forward: source of the temporal-dynamics
+        # predictions and of the anti-collapse statistics. The masked context
+        # branch is unsuitable for both — most of its patches are identical
+        # mask tokens, which caps cross-sample variance by construction.
+        clean_out = self.online.encode(aug_values, aug_mask)
         with torch.no_grad():
             target_out = self.target.encode(values, mask)
             tgt_fused = F.layer_norm(
@@ -122,11 +133,38 @@ class JEPAPretrainer(nn.Module):
         ctx_loss = F.smooth_l1_loss(pred[patch_mask], tgt_fused[patch_mask])
 
         # Objective 2: next-patch temporal dynamics over both streams.
-        pred_state_next = self.state_transition(online_out["state"][:, :-1])
-        pred_event_next = self.event_transition(online_out["event"][:, :-1])
+        pred_state_next = self.state_transition(clean_out["state"][:, :-1])
+        pred_event_next = self.event_transition(clean_out["event"][:, :-1])
         dyn_loss = F.smooth_l1_loss(
             pred_state_next, tgt_state[:, 1:]
         ) + F.smooth_l1_loss(pred_event_next, tgt_event[:, 1:])
 
-        loss = ctx_loss + self.cfg.dynamics_weight * dyn_loss
-        return {"loss": loss, "context_loss": ctx_loss, "dynamics_loss": dyn_loss}
+        # Anti-collapse regularization. Collapse here is across *days*: every
+        # day can produce the same time-of-day token pattern while per-token
+        # statistics still look diverse, so the variance hinge must act on the
+        # cross-sample (batch) dimension at each patch position, and on the
+        # pooled daily embedding.
+        fused = clean_out["fused"]  # (B, P, D)
+        std_tok = torch.sqrt(fused.var(dim=0) + 1e-4)  # (P, D) across days
+        pooled = clean_out["pooled"]  # (B, D)
+        std_pool = torch.sqrt(pooled.var(dim=0) + 1e-4)
+        var_loss = F.relu(1.0 - std_tok).mean() + F.relu(1.0 - std_pool).mean()
+
+        zp = pooled - pooled.mean(dim=0)
+        n, d = zp.shape
+        cov = (zp.T @ zp) / max(1, n - 1)
+        cov_loss = (cov.pow(2).sum() - cov.diagonal().pow(2).sum()) / d
+
+        loss = (
+            ctx_loss
+            + self.cfg.dynamics_weight * dyn_loss
+            + self.cfg.variance_weight * var_loss
+            + self.cfg.covariance_weight * cov_loss
+        )
+        return {
+            "loss": loss,
+            "context_loss": ctx_loss,
+            "dynamics_loss": dyn_loss,
+            "variance_loss": var_loss,
+            "covariance_loss": cov_loss,
+        }

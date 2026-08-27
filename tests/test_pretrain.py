@@ -86,3 +86,25 @@ def test_learned_sigma_stays_in_bounds_after_training():
     pretrain(model, c["values"], c["mask"], TrainConfig(epochs=2, batch_size=8, log_every=1000))
     s = float(model.decompose.sigma)
     assert 2.0 <= s <= 12.0
+
+
+def test_no_dimensional_collapse_after_pretraining():
+    """Embeddings must span many dimensions after pretraining (the
+    anti-collapse regularizer is doing its job): effective rank of the
+    pooled-embedding covariance must be well above the ~2 seen when the
+    latents collapse."""
+    c = generate_cohort(SyntheticCGMConfig(n_subjects=12, days_per_subject=4, seed=9))
+    model = _small_model()
+    # Escaping the position-dominated init needs ~100+ steps; 50 epochs of
+    # 3 batches each is enough and still runs in seconds on CPU.
+    pretrain(model, c["values"], c["mask"], TrainConfig(epochs=50, batch_size=16, lr=2e-3, log_every=1000))
+    with torch.no_grad():
+        emb = model(
+            torch.from_numpy(c["values"]).float(), torch.from_numpy(c["mask"]).float()
+        ).numpy()
+    cov = np.cov(emb.T)
+    ev = np.clip(np.linalg.eigvalsh(cov), 1e-12, None)
+    p = ev / ev.sum()
+    eff_rank = float(np.exp(-(p * np.log(p)).sum()))
+    # Collapsed runs sit at ~1-2; healthy runs at this scale reach 6-10.
+    assert eff_rank > 5.0, f"effective rank {eff_rank:.1f} suggests latent collapse"
